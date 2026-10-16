@@ -196,6 +196,23 @@ final class SceneViewModel: MetalRendererDelegate {
         cameraController.applyPinch(scale: scale)
     }
 
+    // MARK: - Debug Polling Control
+
+    /// Запускает фоновый опрос debug-информации через SceneDebugService
+    func startDebugPolling() {
+        debugService.startPolling()
+    }
+
+    /// Останавливает фоновый опрос debug-информации через SceneDebugService
+    func stopDebugPolling() {
+        debugService.stopPolling()
+    }
+
+    /// Флаг активности фонового опроса debug-информации
+    var isDebugPolling: Bool {
+        debugService.isPolling
+    }
+
     // MARK: - MetalRendererDelegate
 
     @MainActor

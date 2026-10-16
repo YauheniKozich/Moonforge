@@ -105,6 +105,12 @@ struct SceneView: View {
                     .presentationDetents([.height(280)])
                     .presentationDragIndicator(.visible)
                     .presentationBackgroundInteraction(.enabled(upThrough: .height(280)))
+                    .onAppear {
+                        viewModel.startDebugPolling()
+                    }
+                    .onDisappear {
+                        viewModel.stopDebugPolling()
+                    }
                 }
             }
         }
@@ -113,6 +119,16 @@ struct SceneView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .navigationBar)
         .statusBarHidden(true)
+        .onDisappear {
+            viewModel.stopDebugPolling()
+        }
+        .onChange(of: isDebugPanelVisible) { _, isVisible in
+            if isVisible {
+                viewModel.startDebugPolling()
+            } else {
+                viewModel.stopDebugPolling()
+            }
+        }
     }
 
     private func validatedFloat(_ value: Double) -> Float {
