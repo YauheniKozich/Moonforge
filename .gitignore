@@ -1,0 +1,41 @@
+# Xcode
+## User settings & build products
+xcuserdata/
+*.xcuserdatad
+*.xcuserstate
+*.xcscmblueprint
+DerivedData/
+build/
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+## Keep shared schemes & workspace
+!*.xcodeproj/xcshareddata/xcschemes/
+!*.xcodeproj/xcshareddata/xcschemes/*
+!Moonforge.xcodeproj/xcshareddata/xcschemes/Moonforge.xcscheme
+!*.xcodeproj/project.xcworkspace/
+!*.xcodeproj/project.xcworkspace/contents.xcworkspacedata
+
+## Keep asset catalogs
+!*.xcassets/
+!*.xcassets/**
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+
+# Logs and outputs
+*.log
+output/
+
+# Swift Package Manager
+.build/
+Packages/
+
+# Executables
+main
