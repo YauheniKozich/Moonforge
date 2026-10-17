@@ -12,7 +12,7 @@ import os
 // MARK: - Rotation State Data
 
 /// Value type for rotation state
-struct RotationStateData {
+struct RotationStateData: Sendable {
     var x: Float = 0
     var y: Float = 0
     var z: Float = 0
@@ -37,7 +37,7 @@ struct RotationStateData {
 
 /// Thread-safe rotation state manager using OSAllocatedUnfairLock.
 /// Can be called from any thread (Main thread for UI input, Metal thread for rendering).
-public final class RotationStateManager {
+public final class RotationStateManager: Sendable {
     private let stateLock = OSAllocatedUnfairLock(initialState: RotationStateData())
 
     public init() {}

@@ -6,6 +6,7 @@
 //
 
 import XCTest
+import os
 @testable import Moonforge
 
 final class TextureCacheTests: XCTestCase {
@@ -133,10 +134,7 @@ final class TextureCacheTests: XCTestCase {
 
         let iterations = 2000
         let group = DispatchGroup()
-        let lock = os_unfair_lock_t.allocate(capacity: 1)
-        lock.initialize(to: os_unfair_lock())
-        defer { lock.deallocate() }
-        var ratioExceededBounds = false
+        let ratioExceededBounds = OSAllocatedUnfairLock(initialState: false)
 
         group.enter()
         DispatchQueue.global(qos: .userInitiated).async {
@@ -155,9 +153,7 @@ final class TextureCacheTests: XCTestCase {
             for _ in 0..<iterations {
                 let ratio = testCache.hitRatio
                 if ratio < 0.0 || ratio > 1.0 {
-                    os_unfair_lock_lock(lock)
-                    ratioExceededBounds = true
-                    os_unfair_lock_unlock(lock)
+                    ratioExceededBounds.withLock { $0 = true }
                     break
                 }
             }
@@ -165,9 +161,7 @@ final class TextureCacheTests: XCTestCase {
         }
 
         group.wait()
-        os_unfair_lock_lock(lock)
-        let failed = ratioExceededBounds
-        os_unfair_lock_unlock(lock)
+        let failed = ratioExceededBounds.withLock { $0 }
         XCTAssertFalse(failed, "hitRatio must always remain within [0.0, 1.0]")
     }
 
