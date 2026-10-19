@@ -12,6 +12,54 @@ import os
 
 // MARK: - Base Renderer
 
+enum SubmeshColorPass: Equatable {
+    case opaqueOnly
+    case transparentOnly
+    case both
+    case neither
+
+    static func classify(alpha: Float, hasActiveBaseColorTexture: Bool) -> Self {
+        guard !hasActiveBaseColorTexture, alpha.isFinite else { return .both }
+        if alpha >= 1 { return .opaqueOnly }
+        if alpha >= 0.01 { return .transparentOnly }
+        return .neither
+    }
+
+    var drawsOpaque: Bool {
+        self == .opaqueOnly || self == .both
+    }
+
+    var drawsTransparent: Bool {
+        self == .transparentOnly || self == .both
+    }
+}
+
+struct TransparentSubmeshSortKey: Equatable {
+    let index: Int
+    let depth: Float
+}
+
+enum TransparentSubmeshSorter {
+    static func sortedKeys<Item>(
+        for items: [Item],
+        shouldInclude: (Item) -> Bool,
+        depth: (Item) -> Float
+    ) -> [TransparentSubmeshSortKey] {
+        var keys: [TransparentSubmeshSortKey] = []
+        for (index, item) in items.enumerated() where shouldInclude(item) {
+            keys.append(TransparentSubmeshSortKey(index: index, depth: depth(item)))
+        }
+        sort(&keys)
+        return keys
+    }
+
+    static func sort(_ keys: inout [TransparentSubmeshSortKey]) {
+        keys.sort { lhs, rhs in
+            lhs.depth == rhs.depth ? lhs.index < rhs.index : lhs.depth < rhs.depth
+        }
+    }
+}
+
 /// Base renderer with common Metal infrastructure.
 ///
 /// Thread safety model:
@@ -451,17 +499,35 @@ class BaseRenderer: MetalRenderer, MetalRenderable, MetalViewRendering {
         }
 
         for submesh in submeshes {
-            drawSubmesh(submesh, alphaPass: 1)
+            let hasActiveBaseColorTexture = submesh.useBaseColorTexture
+                && (submesh.baseColorTexture?.width ?? 0) > 0
+            let colorPass = SubmeshColorPass.classify(
+                alpha: submesh.baseColor.w,
+                hasActiveBaseColorTexture: hasActiveBaseColorTexture
+            )
+            if colorPass.drawsOpaque {
+                drawSubmesh(submesh, alphaPass: 1)
+            }
         }
         encoder.setDepthStencilState(transparentDepthStencil)
         let modelView = uniforms.viewMatrix * uniforms.modelMatrix
-        let transparentSubmeshes = submeshes.enumerated().sorted { lhs, rhs in
-            let left = (modelView * SIMD4<Float>(lhs.element.sortCenter, 1)).z
-            let right = (modelView * SIMD4<Float>(rhs.element.sortCenter, 1)).z
-            return left == right ? lhs.offset < rhs.offset : left < right
-        }
+        let transparentSubmeshes = TransparentSubmeshSorter.sortedKeys(
+            for: submeshes,
+            shouldInclude: { submesh in
+                let hasActiveBaseColorTexture = submesh.useBaseColorTexture
+                    && (submesh.baseColorTexture?.width ?? 0) > 0
+                return SubmeshColorPass.classify(
+                    alpha: submesh.baseColor.w,
+                    hasActiveBaseColorTexture: hasActiveBaseColorTexture
+                ).drawsTransparent
+            },
+            depth: { submesh in
+                (modelView * SIMD4<Float>(submesh.sortCenter, 1)).z
+            }
+        )
         for entry in transparentSubmeshes {
-            drawSubmesh(entry.element, alphaPass: 2)
+            let submesh = submeshes[entry.index]
+            drawSubmesh(submesh, alphaPass: 2)
         }
     }
 
